@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>scylint - home</title>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+
+    <script
+      src="https://kit.fontawesome.com/1196e0b498.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <style>
+      #image-preview {
+        max-width: 300px;
+        max-height: 300px;
+      }
+    </style>
+
+    <script>
+      async function postLoop() {
+        while (true) {
+          await new Promise((r) => setTimeout(r, 120000));
+
+          askForPosts();
+        }
+      }
+
+      async function askForPosts() {
+        await fetch("/api/get")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(
+                "Network response was not ok " + response.statusText
+              );
+            }
+            return response.json();
+          })
+          .then((data) => {
+            const posts = document.getElementById("postTable");
+
+            while (posts.firstChild) {
+              posts.lastChild.remove();
+            }
+
+            for (const [id, message] of Object.entries(data).reverse()) {
+              console.log(
+                `ID: ${id}, AuthorID: ${message[0]}, AuthorHandle: ${message[1]}, AuthorUsername: ${message[2]}, Message: ${message[3]}`
+              );
+
+              const container = document.createElement("div");
+              const author = document.createElement("a");
+              const content = document.createElement("a");
+              const image = document.createElement("img");
+
+              const reportButton = document.createElement("button");
+              const likeButton = document.createElement("button");
+              const likeIcon = document.createElement("i");
+
+              const bl = document.createElement("br");
+              const br = document.createElement("br");
+
+              image.id = "postPreviewImg";
+
+              author.textContent = message[2];
+              author.href = "users?" + message[1];
+
+              reportButton.textContent = "Report";
+
+              // Initialize the likeButton with the icon and placeholder text
+              likeIcon.className = "fa-regular fa-heart";
+              likeButton.innerHTML = `${likeIcon.outerHTML} <span id="like-count">(0)</span>`;
+
+              // Add the icon to the button
+              likeButton.appendChild(likeIcon);
+
+              reportButton.addEventListener("click", function () {
+                container.style.backgroundColor = "rgba(51, 0, 0, 0.699)";
+                fetch("/api/report", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ messageId: id }),
+                })
+                  .then((response) => response.json())
+                  .then((data) => {
+                    console.log("Success:", data);
+                  })
+                  .catch((error) => {
+                    console.error("Error:", error);
+                  });
+              });
+
+              likeButton.addEventListener("click", function () {
+                fetch("/api/like", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ id: id }),
+                })
+                  .then((response) => response.json())
+                  .then((data) => {
+                    console.log("Success:", data);
+                    checkIfILiked(); // Update like button state
+                  })
+                  .catch((error) => {
+                    console.error("Error:", error);
+                  });
+              });
+
+              function checkIfILiked() {
+                fetch("/api/didILike", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ id: id }),
+                })
+                  .then((response) => response.json())
+                  .then((data) => {
+                    console.log("Success:", data);
+
+                    if (data.info == "1") {
+                      likeButton.style.backgroundColor =
+                        "rgba(51, 0, 0, 0.699)";
+                      likeIcon.classList.add("liked"); // Optional: add a class for styling
+                    } else {
+                      likeButton.style.backgroundColor = "";
+                      likeIcon.classList.remove("liked"); // Optional: remove class if not liked
+                    }
+
+                    // Update the text of the like count
+                    const likeCountSpan =
+                      likeButton.querySelector("#like-count");
+                    if (likeCountSpan) {
+                      likeCountSpan.textContent = `(${data.likes})`;
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Error:", error);
+                  });
+              }
+
+              checkIfILiked();
+
+              content.textContent = message[3];
+
+              container.style.backgroundColor = "rgba(0, 0, 0, 0.171)";
+              container.style.marginTop = "10px";
+              container.style.borderRadius = "6px";
+
+              posts.appendChild(container);
+
+              container.appendChild(author);
+              container.appendChild(bl);
+              container.appendChild(br);
+              container.appendChild(content);
+
+              if (message[4] != "0") {
+                image.src = message[4];
+                container.appendChild(image);
+              }
+
+              container.appendChild(likeButton);
+              container.appendChild(reportButton);
+            }
+          });
+      }
+
+      askForPosts();
+      postLoop();
+    </script>
+  </head>
+  <body>
+    <header class="top-bar">
+      <div>
+        <a>scylint</a>
+      </div>
+
+      <nav class="nav-links">
+        <div class="nav-right">
+          <a href="users?">Profile</a>
+          <a href="/api/logout"><button>Logout</button></a>
+        </div>
+      </nav>
+    </header>
+
+    <br />
+
+    <form
+      class="postingText"
+      method="POST"
+      action="/api/post"
+      enctype="multipart/form-data"
+    >
+      <textarea name="content" placeholder="funnie little post"></textarea>
+      <input type="file" name="image" id="imageInput" accept="image/*" />
+      <img
+        id="image-preview"
+        src=""
+        alt="Image preview"
+        style="display: none; max-width: 200px; max-height: 200px"
+      />
+      <button type="submit">Post</button>
+    </form>
+
+    <div id="postTable">
+      <div style="background-color: rgba(0, 0, 0, 0.171)">
+        <a>author</a>
+        <br /><br /><br />
+        <a>content</a>
+
+        <button><i class="fa-regular fa-heart"> (likes)</i></button>
+      </div>
+    </div>
+
+    <script>
+      const uploadInput = document.getElementById("imageInput");
+      const previewImage = document.getElementById("image-preview");
+      const maxWidth = 800; // Set maximum width
+      const maxHeight = 800; // Set maximum height
+
+      uploadInput.addEventListener("change", function () {
+        const file = uploadInput.files[0];
+        if (file) {
+          const img = new Image();
+          img.onload = function () {
+            if (img.width > maxWidth || img.height > maxHeight) {
+              alert(
+                `Image dimensions should not exceed ${maxWidth}px by ${maxHeight}px.`
+              );
+              uploadInput.value = ""; // Clear the input
+              previewImage.src = ""; // Clear the preview
+            } else {
+              previewImage.src = URL.createObjectURL(file); // Display image preview
+            }
+          };
+          img.src = URL.createObjectURL(file);
+        }
+      });
+    </script>
+
+    <script>
+      document
+        .getElementById("imageInput")
+        .addEventListener("change", function (event) {
+          const file = event.target.files[0];
+          const imagePreview = document.getElementById("imagePreview");
+
+          if (file) {
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+              imagePreview.src = e.target.result;
+              imagePreview.style.display = "block"; // Show the image preview
+            };
+
+            reader.readAsDataURL(file); // Convert the file to a Data URL
+          } else {
+            imagePreview.src = "";
+            imagePreview.style.display = "none"; // Hide the image preview if no file selected
+          }
+        });
+    </script>
+  </body>
+</html>

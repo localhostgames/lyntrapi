@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scylint - User</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+    <script>
+      function attemptFollow() {
+        fetch("/api/follow", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json", // Adjust if you are sending different types of data
+          },
+          body: JSON.stringify({
+            handle: window.location.search.replace("?", ""),
+          }), // Replace with the actual data you want to send
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("Success:", data);
+            location.reload();
+            // Handle the response data
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+    </script>
+  </head>
+  <body>
+    <header class="header">
+      <a href="/" class="home-button">Home</a>
+    </header>
+
+    <main class="main-content">
+      {% if data %}
+      <div class="user-info">
+        <h1>{{ data.username }}</h1>
+        <h2>@{{ data.handle }}</h2>
+        <h2>{{ data.followers }} Followers</h2>
+        <p style="color: rgb(211, 104, 104)" id="followsYou">Follows you!</p>
+        <p>Bio: {{ data.bio }}</p>
+
+        <textarea id="newBioText" placeholder="Set your new bio"></textarea>
+        <button onclick="setBio()" id="setNewBio">Set bio</button>
+        <button onclick="closeBio()" id="closeBioEditer">Close</button>
+      </div>
+      <script>
+        document.title = "{{ data.handle }}";
+      </script>
+      {% else %}
+      <p class="error">Could not find user!</p>
+      {% endif %} {% if isMine %}
+      <button onclick=editBio()>Edit Bio</button>
+      {% else %} {% if data %}
+      <button id="followButton" onclick="attemptFollow()">Follow</button>
+      {% endif %} {% endif %}
+    </main>
+
+    <script>
+      fetch("/api/doIFollow", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json", // Adjust if you are sending different types of data
+        },
+        body: JSON.stringify({
+          handle: window.location.search.replace("?", ""),
+        }), // Replace with the actual data you want to send
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Success:", data);
+
+          if (data.info == "1") {
+            document.getElementById("followButton").textContent = "Following";
+          } else if (data.info == "0") {
+            document.getElementById("followButton").textContent = "Follow";
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+
+      fetch("/api/followsMe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json", // Ensure the server expects JSON
+        },
+        body: JSON.stringify({
+          requestedUser: window.location.search.replace("?", ""),
+        }), // Adjust key if necessary
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Success:", data);
+
+          if (data.info == "1") {
+            document.getElementById("followsYou").innerHTML = "Follows you!";
+          } else{
+            document.getElementById("followsYou").innerHTML = "";
+          }
+          // Handle the response data
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+
+
+      function setBio() {
+        fetch("/api/changeBio", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json", // Adjust if you are sending different types of data
+          },
+          body: JSON.stringify({
+            handle: window.location.search.replace("?", ""),
+            newBio: document.getElementById("newBioText").value,
+          }), // Replace with the actual data you want to send
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("Success:", data);
+
+            if (data.info == "success")
+            {
+              location.reload();
+            }
+            //location.reload();
+            // Handle the response data
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+
+      function editBio() {
+        document.getElementById("newBioText").style.display = "block";
+        document.getElementById("setNewBio").style.display = "block";
+        document.getElementById("closeBioEditer").style.display = "block";
+      }
+
+      function closeBio() {
+        document.getElementById("newBioText").style.display = "none";
+        document.getElementById("setNewBio").style.display = "none";
+        document.getElementById("closeBioEditer").style.display = "none";
+      }
+
+      closeBio();
+    </script>
+  </body>
+</html>
